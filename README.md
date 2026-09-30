@@ -2,7 +2,21 @@
 
 유튜브 영상 주소를 넣으면 **제목·채널·자막 전문**을 가져오고, 원하면 **Claude로 요약하거나 질문**할 수 있는 명령줄 도구입니다.
 
-## 설치
+## 가장 쉬운 사용법: Claude Code 스킬
+
+이 저장소를 내 PC에 받아서 Claude Code로 열면 `youtube-reader` 스킬이 자동으로 켜집니다.
+채팅에 유튜브 링크를 붙여 넣고 "요약해줘"라고 하면 Claude가 자막을 가져와 정리합니다 (API 키 불필요).
+
+```bash
+git clone https://github.com/KIM0296/tool.git
+cd tool
+pip install -e .
+claude          # Claude Code 실행 후: "https://youtu.be/... 이 영상 요약해줘"
+```
+
+> 유튜브는 클라우드 서버 접속을 자주 차단하므로 **내 PC에서 실행**해야 잘 동작합니다.
+
+## 설치 (명령어로 직접 쓰기)
 
 ```bash
 pip install -e .            # 기본 (자막 읽기)
