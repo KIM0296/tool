@@ -10,7 +10,7 @@
 ```bash
 git clone https://github.com/KIM0296/tool.git
 cd tool
-pip install -e .
+pip install -e ".[speech]"   # 자막 없는 영상도 읽으려면 [speech] 포함
 claude          # Claude Code 실행 후: "https://youtu.be/... 이 영상 요약해줘"
 ```
 
@@ -20,7 +20,8 @@ claude          # Claude Code 실행 후: "https://youtu.be/... 이 영상 요�
 
 ```bash
 pip install -e .            # 기본 (자막 읽기)
-pip install -e ".[ai]"      # Claude 요약 기능까지
+pip install -e ".[speech]"  # 자막 없는 영상도 음성 인식으로 읽기
+pip install -e ".[ai]"      # Claude API 요약 기능까지
 ```
 
 ## 사용법
@@ -42,6 +43,21 @@ ytread VIDEO_ID --summarize
 ytread VIDEO_ID --ask "이 영상에서 추천하는 도구들을 표로 정리해줘"
 ```
 
+## 자막이 없는 영상
+
+자막이 없으면 영상의 음성을 내려받아 **내 PC에서 Whisper로 직접 받아씁니다** (무료, API 키 불필요).
+
+```bash
+ytread VIDEO_ID                 # 자막이 없으면 자동으로 음성 인식
+ytread VIDEO_ID -m medium       # 더 정확한 모델 (더 느림)
+ytread VIDEO_ID --speech        # 자막이 있어도 음성 인식 사용
+ytread VIDEO_ID --no-speech     # 음성 인식 끄기
+```
+
+- 모델: `tiny` < `base` < `small`(기본) < `medium` < `large-v3` — 클수록 정확하지만 느립니다. 한국어는 `small` 이상을 권장합니다.
+- 처음 실행할 때 모델 파일을 한 번 내려받습니다 (small 약 500MB).
+- 일반 PC(CPU)에서 `small` 모델은 영상 길이의 대략 1/3~1배 시간이 걸립니다. NVIDIA GPU가 있으면 훨씬 빠릅니다.
+
 지원하는 주소 형식: `youtube.com/watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`, `/live/`, 모바일(`m.youtube.com`), 영상 ID 11자리.
 
 ## 파이썬에서 쓰기
@@ -57,7 +73,6 @@ print(to_markdown(video))
 
 ## 참고
 
-- 자막(수동 또는 자동 생성)이 있는 영상만 읽을 수 있습니다.
 - 클라우드 서버 IP는 유튜브가 차단하는 경우가 많아, 개인 PC에서 실행하는 것을 권장합니다.
 - 요약은 `claude-opus-5-5` 모델을 사용합니다 (`ytread/summarize.py`의 `MODEL`).
 

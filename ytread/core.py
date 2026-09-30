@@ -9,7 +9,11 @@ import urllib.request
 from dataclasses import dataclass, field
 
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import CouldNotRetrieveTranscript
+from youtube_transcript_api._errors import (
+    CouldNotRetrieveTranscript,
+    NoTranscriptFound,
+    TranscriptsDisabled,
+)
 
 DEFAULT_LANGUAGES = ("ko", "en")
 
@@ -18,6 +22,10 @@ _ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 class YtReadError(Exception):
     """사용자에게 보여줄 수 있는 오류."""
+
+
+class NoSubtitlesError(YtReadError):
+    """영상에 쓸 수 있는 자막이 없음 (음성 인식으로 대신 읽을 수 있다)."""
 
 
 @dataclass
@@ -35,6 +43,7 @@ class Video:
     author: str | None = None
     language: str | None = None
     is_generated: bool | None = None
+    source: str = "subtitles"  # "subtitles" 또는 "speech" (음성 인식)
     segments: list[Segment] = field(default_factory=list)
 
     @property
@@ -99,7 +108,9 @@ def fetch_transcript(
                 transcript = transcript.translate(languages[0])
         fetched = transcript.fetch()
     except StopIteration:
-        raise YtReadError("이 영상에는 자막이 없습니다.") from None
+        raise NoSubtitlesError("이 영상에는 자막이 없습니다.") from None
+    except (NoTranscriptFound, TranscriptsDisabled) as e:
+        raise NoSubtitlesError("이 영상에는 자막이 없습니다.") from e
     except CouldNotRetrieveTranscript as e:
         raise YtReadError(f"자막을 가져오지 못했습니다: {type(e).__name__}") from e
 
@@ -107,19 +118,50 @@ def fetch_transcript(
     return segments, fetched.language_code, fetched.is_generated
 
 
-def read_video(value: str, languages: tuple[str, ...] = DEFAULT_LANGUAGES) -> Video:
+def read_video(
+    value: str,
+    languages: tuple[str, ...] = DEFAULT_LANGUAGES,
+    speech: str = "auto",
+    model_size: str | None = None,
+) -> Video:
+    """영상을 읽는다.
+
+    speech: "auto"   자막이 없으면 음성 인식으로 대신 읽는다 (설치된 경우)
+            "never"  자막만 사용
+            "always" 자막을 무시하고 항상 음성 인식
+    """
     video_id = extract_video_id(value)
     meta = fetch_metadata(video_id)
-    segments, language, generated = fetch_transcript(video_id, languages)
-    return Video(
+    video = Video(
         video_id=video_id,
         url=f"https://www.youtube.com/watch?v={video_id}",
         title=meta.get("title"),
         author=meta.get("author_name"),
-        language=language,
-        is_generated=generated,
-        segments=segments,
     )
+
+    if speech != "always":
+        try:
+            video.segments, video.language, video.is_generated = fetch_transcript(
+                video_id, languages
+            )
+            return video
+        except NoSubtitlesError:
+            if speech == "never":
+                raise
+
+    from . import speech as speech_mod
+
+    if speech == "auto" and not speech_mod.is_available():
+        raise NoSubtitlesError(
+            "이 영상에는 자막이 없습니다. 음성 인식으로 읽으려면 "
+            "'pip install -e \".[speech]\"' 를 실행해 주세요."
+        )
+    video.segments, video.language = speech_mod.transcribe(
+        video_id, model_size or speech_mod.DEFAULT_MODEL
+    )
+    video.source = "speech"
+    video.is_generated = True
+    return video
 
 
 def format_timestamp(seconds: float) -> str:
@@ -134,7 +176,9 @@ def to_markdown(video: Video, timestamps: bool = True) -> str:
     if video.author:
         lines.append(f"- 채널: {video.author}")
     lines.append(f"- 주소: {video.url}")
-    if video.language:
+    if video.source == "speech":
+        lines.append(f"- 자막: {video.language} (음성 인식 — 자막이 없어 직접 받아씀)")
+    elif video.language:
         kind = "자동 생성" if video.is_generated else "수동 작성"
         lines.append(f"- 자막: {video.language} ({kind})")
     lines += ["", "## 자막", ""]
@@ -157,6 +201,7 @@ def to_json(video: Video) -> str:
         "author": video.author,
         "language": video.language,
         "is_generated": video.is_generated,
+        "source": video.source,
         "segments": [s.__dict__ for s in video.segments],
     }
     return json.dumps(data, ensure_ascii=False, indent=2)

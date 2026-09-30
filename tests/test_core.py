@@ -136,3 +136,73 @@ def test_cli_text_to_file(fake_network, tmp_path):
 def test_cli_invalid_url(capsys):
     assert cli.main(["not a url"]) == 1
     assert "오류" in capsys.readouterr().err
+
+
+# --- 자막이 없을 때 음성 인식으로 대신 읽기 ---
+
+from ytread import speech  # noqa: E402
+
+
+@pytest.fixture
+def no_subtitles(monkeypatch):
+    monkeypatch.setattr(core, "fetch_metadata", lambda vid: {"title": "자막 없는 영상"})
+
+    def fetch_transcript(vid, langs):
+        raise core.NoSubtitlesError("이 영상에는 자막이 없습니다.")
+
+    monkeypatch.setattr(core, "fetch_transcript", fetch_transcript)
+
+
+@pytest.fixture
+def fake_speech(monkeypatch):
+    calls = []
+
+    def transcribe(video_id, model_size):
+        calls.append(model_size)
+        return [core.Segment(1.0, 2.0, "음성으로 받아쓴 문장")], "ko"
+
+    monkeypatch.setattr(speech, "is_available", lambda: True)
+    monkeypatch.setattr(speech, "transcribe", transcribe)
+    return calls
+
+
+def test_falls_back_to_speech(no_subtitles, fake_speech, capsys):
+    assert cli.main([VID]) == 0
+    out = capsys.readouterr().out
+    assert "음성 인식" in out and "음성으로 받아쓴 문장" in out
+    assert fake_speech == ["small"]
+
+
+def test_speech_model_option(no_subtitles, fake_speech):
+    assert cli.main([VID, "-m", "medium", "-f", "text"]) == 0
+    assert fake_speech == ["medium"]
+
+
+def test_no_speech_option(no_subtitles, fake_speech, capsys):
+    assert cli.main([VID, "--no-speech"]) == 1
+    assert "자막이 없습니다" in capsys.readouterr().err
+    assert fake_speech == []
+
+
+def test_speech_not_installed(no_subtitles, monkeypatch, capsys):
+    monkeypatch.setattr(speech, "is_available", lambda: False)
+    assert cli.main([VID]) == 1
+    assert ".[speech]" in capsys.readouterr().err
+
+
+def test_force_speech_skips_subtitles(fake_network, fake_speech, capsys):
+    assert cli.main([VID, "--speech", "-f", "json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["source"] == "speech"
+    assert data["segments"][0]["text"] == "음성으로 받아쓴 문장"
+
+
+def test_transcripts_disabled_is_no_subtitles():
+    from youtube_transcript_api._errors import TranscriptsDisabled
+
+    class Api:
+        def list(self, video_id):
+            raise TranscriptsDisabled(video_id)
+
+    with pytest.raises(core.NoSubtitlesError):
+        core.fetch_transcript(VID, ("ko",), Api())

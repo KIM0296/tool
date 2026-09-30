@@ -22,6 +22,20 @@ def build_parser() -> argparse.ArgumentParser:
         "-f", "--format", choices=["markdown", "text", "json"], default="markdown",
         help="출력 형식 (기본: markdown)",
     )
+    speech = p.add_mutually_exclusive_group()
+    speech.add_argument(
+        "--speech", dest="speech", action="store_const", const="always", default="auto",
+        help="자막을 무시하고 항상 음성 인식으로 읽기",
+    )
+    speech.add_argument(
+        "--no-speech", dest="speech", action="store_const", const="never",
+        help="자막이 없어도 음성 인식을 하지 않기",
+    )
+    p.add_argument(
+        "-m", "--model", default=None,
+        help="음성 인식 모델: tiny, base, small(기본), medium, large-v3 "
+             "(클수록 정확하지만 느림)",
+    )
     p.add_argument("-o", "--output", help="결과를 저장할 파일 경로")
     p.add_argument(
         "-s", "--summarize", action="store_true",
@@ -37,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     languages = tuple(x.strip() for x in args.lang.split(",") if x.strip())
 
     try:
-        video = read_video(args.video, languages)
+        video = read_video(args.video, languages, args.speech, args.model)
     except YtReadError as e:
         print(f"오류: {e}", file=sys.stderr)
         return 1
