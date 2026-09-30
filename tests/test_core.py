@@ -206,3 +206,14 @@ def test_transcripts_disabled_is_no_subtitles():
 
     with pytest.raises(core.NoSubtitlesError):
         core.fetch_transcript(VID, ("ko",), Api())
+
+
+def test_network_error_is_friendly():
+    import requests
+
+    class Api:
+        def list(self, video_id):
+            raise requests.exceptions.ProxyError("Tunnel connection failed: 403")
+
+    with pytest.raises(core.YtReadError, match="접속하지 못했습니다"):
+        core.fetch_transcript(VID, ("ko",), Api())

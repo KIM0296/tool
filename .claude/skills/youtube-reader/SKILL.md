@@ -42,6 +42,6 @@ python -m ytread "<유튜브 주소>" -f markdown
 | `음성 인식 기능이 설치되지 않았습니다` / `... pip install -e ".[speech]"` | 자막이 없는데 음성 인식 패키지가 없음. 저장소 루트에서 `pip install -e ".[speech]"` 실행 후 재시도. |
 | `음성 인식 모델(...)을 불러오지 못했습니다` | 첫 실행 시 모델 다운로드 실패. 인터넷 연결을 확인하고 재시도. |
 | `오디오를 내려받지 못했습니다` | yt-dlp 다운로드 실패. `pip install -U yt-dlp` 로 업데이트 후 재시도. |
-| `RequestBlocked`, `IpBlocked` | 유튜브가 현재 네트워크(주로 클라우드 서버)를 차단함. 개인 PC에서 실행해야 한다고 안내한다. |
+| `RequestBlocked`, `IpBlocked`, `NetworkBlocked` | 유튜브가 현재 네트워크(주로 클라우드 서버)를 차단함. 개인 PC에서 실행해야 한다고 안내한다. |
 | `VideoUnavailable`, `AgeRestricted` | 비공개·삭제·연령 제한 영상. 읽을 수 없다고 안내한다. |
 | `유튜브 영상 주소나 ID로 인식할 수 없습니다` | 링크를 다시 확인해 달라고 한다. |

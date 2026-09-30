@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "유튜브 영상의 제목·자막을 읽고 Claude로 요약하는 도구"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["youtube-transcript-api>=1.2"]
+dependencies = ["youtube-transcript-api>=1.2", "requests"]
 
 [project.optional-dependencies]
 ai = ["anthropic>=1.9"]

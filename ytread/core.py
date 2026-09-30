@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 
+import requests
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     CouldNotRetrieveTranscript,
@@ -113,6 +114,11 @@ def fetch_transcript(
         raise NoSubtitlesError("이 영상에는 자막이 없습니다.") from e
     except CouldNotRetrieveTranscript as e:
         raise YtReadError(f"자막을 가져오지 못했습니다: {type(e).__name__}") from e
+    except requests.RequestException as e:
+        raise YtReadError(
+            "유튜브에 접속하지 못했습니다 (NetworkBlocked). 인터넷 연결을 확인하거나, "
+            "클라우드 환경이라면 개인 PC에서 실행해 주세요."
+        ) from e
 
     segments = [Segment(s.start, s.duration, s.text) for s in fetched.snippets]
     return segments, fetched.language_code, fetched.is_generated
